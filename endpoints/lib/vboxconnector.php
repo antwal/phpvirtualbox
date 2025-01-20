@@ -10,6 +10,7 @@
  *
  */
 
+#[AllowDynamicProperties]
 class vboxconnector {
 
 	/**
@@ -1358,7 +1359,7 @@ class vboxconnector {
 			$src = $nsrc->machine;
 		}
 		/* @var $m IMachine */
-		$m = $this->vbox->createMachine($this->vbox->composeMachineFilename($args['name'],null,null,null),$args['name'],null,null,null,false);
+		$m = $this->vbox->createMachine($this->vbox->composeMachineFilename($args['name'],null,null,null),$args['name'],null,null,null,null,null,null);
 		$sfpath = $m->settingsFilePath;
 
 		/* @var $cm CloneMode */
@@ -1938,9 +1939,9 @@ class vboxconnector {
 		}
 
 		// Audio controller settings
-		$m->audioAdapter->enabled = ($args['audioAdapter']['enabled'] ? 1 : 0);
-		$m->audioAdapter->audioController = $args['audioAdapter']['audioController'];
-		$m->audioAdapter->audioDriver = $args['audioAdapter']['audioDriver'];
+		$m->audioSettings->Adapter->enabled = ($args['audioAdapter']['enabled'] ? 1 : 0);
+		$m->audioSettings->Adapter->audioController = $args['audioAdapter']['audioController'];
+		$m->audioSettings->Adapter->audioDriver = $args['audioAdapter']['audioDriver'];
 
 		// Boot order
 		$mbp = $this->vbox->systemProperties->maxBootPosition;
@@ -2351,7 +2352,7 @@ class vboxconnector {
 
 
 		/* @var $m IMachine */
-		$m = $this->vbox->openMachine($args['file']);
+		$m = $this->vbox->openMachine($args['file'],null);
 		$this->vbox->registerMachine($m->handle);
 
 		$m->releaseRemote();
@@ -3799,7 +3800,7 @@ class vboxconnector {
 
 
 		/* @var $m IMachine */
-		$m = $this->vbox->createMachine(null,$args['name'],($this->settings->phpVboxGroups ? '' : $args['group']),$args['ostype'],null,null);
+		$m = $this->vbox->createMachine(null,$args['name'],($this->settings->phpVboxGroups ? '' : $args['group']),$args['ostype'],null,null,null,null);
 
 		/* Check for phpVirtualBox groups */
 		if($this->settings->phpVboxGroups && $args['group']) {
@@ -4253,9 +4254,9 @@ class vboxconnector {
 				'VRDEExtPack' => (string)$m->VRDEServer->VRDEExtPack
 				)),
 			'audioAdapter' => array(
-				'enabled' => $m->audioAdapter->enabled,
-				'audioController' => (string)$m->audioAdapter->audioController,
-				'audioDriver' => (string)$m->audioAdapter->audioDriver,
+				'enabled' => $m->audioSettings->Adapter->enabled,
+				'audioController' => (string)$m->audioSettings->Adapter->audioController,
+				'audioDriver' => (string)$m->audioSettings->Adapter->audioDriver,
 				),
 			'RTCUseUTC' => $m->RTCUseUTC,
 		    'EffectiveParavirtProvider' => (string)$m->getEffectiveParavirtProvider(),
@@ -4400,13 +4401,13 @@ class vboxconnector {
 
 	    foreach($args['passwords'] as $creds) {
 	        try {
-	            $this->session->console->removeDiskEncryptionPassword($creds['id']);
+	            $this->session->console->removeEncryptionPassword($creds['id']);
 	        } catch(Exception $e) {
 	            // It may not exist yet
 	        }
 
     	    try {
-    	        $this->session->console->addDiskEncryptionPassword($creds['id'], $creds['password'], (bool)@$args['clearOnSuspend']);
+    	        $this->session->console->addEncryptionPassword($creds['id'], $creds['password'], (bool)@$args['clearOnSuspend']);
     	        $response['accepted'][] = $creds['id'];
     		} catch (Exception $e) {
     		    $response['failed'][] = $creds['id'];
@@ -4904,6 +4905,7 @@ class vboxconnector {
 	    $m = $this->vbox->openMedium($args['medium'], 'HardDisk', 'ReadWrite', false);
 
 	    /* @var $progress IProgress */
+	    if(empty($args['password'])) $args['id'] = "";
 	    $progress = $m->changeEncryption($args['old_password'],
 	            $args['cipher'], $args['password'], $args['id']);
 
@@ -5663,8 +5665,8 @@ class vboxconnector {
 
 		// Attempt to UTF-8 encode string or json_encode may choke
 		// and return an empty string
-		if(function_exists('utf8_encode'))
-			return utf8_encode($log);
+		if(function_exists('iconv'))
+			return iconv("ISO-8859-1", "UTF-8", $log);
 
 		return $log;
 	}
